@@ -5,7 +5,7 @@
 #include <array>
 #include <list>
 #include <vector>
-//#include <string>
+#include <string>
 #include <string_view>
 #include <fstream>
 #include <array>
@@ -14,14 +14,11 @@
 #include <memory>
 //DXLIB
 #include "DxLib.h"
-#include"EffekseerForDXLib.h"
 //’Ç‰Á
 #include"DXLib_mat.hpp"
 #include "SoundHandle.hpp"
 #include "GraphHandle.hpp"
 #include "FontHandle.hpp"
-#include "MV1ModelHandle.hpp"
-#include "EffekseerEffectHandle.hpp"
 //VR
 #define BUTTON_TRIGGER vr::ButtonMaskFromId(vr::EVRButtonId::k_EButton_SteamVR_Trigger)
 #define BUTTON_SIDE vr::ButtonMaskFromId(vr::EVRButtonId::k_EButton_Grip)
@@ -165,40 +162,6 @@ void start_me(void) {
 	createProcess(Path, SW_HIDE, false);
 }
 //
-enum Effect {
-	ef_fire, //”­–C‰Š
-	ef_reco, //¬ŒûŒa’µ’e
-	ef_smoke, //e‚Ì‹OÕ
-	effects, //“Ç‚Ýž‚Þ
-};
-struct EffectS {
-	bool flug{ false };		 /**/
-	size_t id = 0;
-	Effekseer3DPlayingHandle handle; /**/
-	VECTOR_ref pos;			 /**/
-	VECTOR_ref nor;			 /**/
-	float scale = 1.f;		 /**/
-};
-void set_effect(EffectS* efh, VECTOR_ref pos, VECTOR_ref nor, float scale = 1.f) {
-	efh->flug = true;
-	efh->pos = pos;
-	efh->nor = nor;
-	efh->scale = scale;
-}
-void set_pos_effect(EffectS* efh, const EffekseerEffectHandle& handle) {
-	if (efh->flug) {
-		if (efh->handle.IsPlaying()) {
-			efh->handle.Stop();
-		}
-		efh->handle = handle.Play3D();
-		efh->handle.SetPos(efh->pos);
-		efh->handle.SetRotation(atan2(efh->nor.y(), std::hypot(efh->nor.x(), efh->nor.z())), atan2(-efh->nor.x(), -efh->nor.z()), 0);
-		efh->handle.SetScale(efh->scale);
-		efh->flug = false;
-	}
-}
-
-
 class DXDraw {
 public:
 	int disp_x = 1920;
@@ -285,9 +248,6 @@ public:
 		Set3DSoundOneMetre(1.0f);											/**/
 		SetWaitVSyncFlag(use_vsync ? TRUE : FALSE);							/*‚’¼“¯Šú*/
 		DxLib_Init();														/**/
-		Effekseer_Init(8000);												/*Effekseer*/
-		SetChangeScreenModeGraphicsSystemResetFlag(FALSE);					/*Effekseer*/
-		Effekseer_SetGraphicsDeviceLostCallbackFunctions();					/*Effekseer*/
 		SetAlwaysRunFlag(TRUE);												/*background*/
 		SetUseZBuffer3D(TRUE);												/*zbufuse*/
 		SetWriteZBuffer3D(TRUE);											/*zbufwrite*/
@@ -301,7 +261,6 @@ public:
 		outScreen[2] = GraphHandle::Make(this->disp_x, this->disp_y);	/*TPS—p*/
 	}
 	~DXDraw(void) {
-		Effkseer_End();
 		DxLib_End();
 	}
 	template <typename T>

@@ -1,5 +1,9 @@
 #define FRAME_RATE 60.f
+#define m_limit 100
 #include "DXLib_ref/DXLib_ref.h"
+
+int x_m, y_m;
+GraphHandle screen;
 
 class HostPassEffect {
 private:
@@ -33,14 +37,19 @@ public:
 class cir {
 private:
 	float r, r_f;
-	float rt, rt_f;
-public:
-	int x, y;
+	float rt;
 	float col;
+	int x, y;
+public:
 	bool the_end() {
 		return rt >= (640.f - 100.f - 100.f);
 	}
 
+	void reset() {
+		r_f = 0.f;
+		r = 0.f;
+		col = 255.f;
+	}
 	void set(float power) {
 		GetMousePoint(&x, &y);
 		r_f = power;
@@ -58,40 +67,93 @@ public:
 		col = std::clamp(col - 255.f / GetFPS() / 3.f, 0.f, 255.f);
 	}
 	void draw() {
-		DrawCircle(x, y, int(r), GetColor(int(152.f*col/255.f), int(115.f*col / 255.f), int(169.f*col / 255.f)), TRUE);
-		DrawCircle(x, y, int(rt), GetColor(255, 255, 255), FALSE, 3);
+		if (col > 0.f) {
+			DrawCircle(x, y, int(r), GetColor(int(152.f*col / 255.f), int(115.f*col / 255.f), int(169.f*col / 255.f)), TRUE);
+		}
+		DrawCircle(x, y, int(rt), GetColor(int(255.f*(1.f - (rt - r) / (640.f - 100.f - 100.f - r))), int(255.f*(1.f - (rt - r) / (640.f - 100.f - 100.f - r))), int(255.f*(1.f - (rt - r) / (640.f - 100.f - 100.f - r)))), FALSE, 6);
 	}
 	bool isHit(const cir& t) {
+		bool ans = false;
 		if (this->col == 0.f || t.col == 0.f) {
-			return false;
+			return ans;
 		}
-		return (int(std::hypot((this->x - t.x), (this->y - t.y))) <= (this->r + t.r));
+		ans = (int(std::hypot((this->x - t.x), (this->y - t.y))) <= (this->r + t.r));
+		if (ans) {
+			this->col = 0.f;
+		}
+		return ans;
 	}
 };
 
+class title {
+private:
+	char click = 0;
+	cir circles;
+public:
+	void set() {
+		click = 0;
+		circles.reset();
+	}
+	bool update() {
+		GetMousePoint(&x_m, &y_m);
+		//SetMousePoint(960 / 2, 640 / 2);
+		if (((GetMouseInput()&MOUSE_INPUT_LEFT) != 0) & (click < 2)) {
+			click++;
+			if (click == 1) {
+				circles.set(64);
+			}
+		}
+		if (click != 0) {
+			circles.update();
+		}
+		screen.SetDraw_Screen(true);
+		{
+			if (click != 0) {
+				circles.draw();
+			}
+			DrawCircle(x_m, y_m, 64, GetColor(255, 0, 0), FALSE);
+		}
+		GraphHandle::SetDraw_Screen(int(DX_SCREEN_BACK), true);
+		{
+			screen.DrawGraph(0, 0, false);
 
-int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
-	auto Drawparts = std::make_unique<DXDraw>("FPS_0", 960, 640, FRAME_RATE);	/*汎用クラス*/
-	auto HostPassparts = std::make_unique<HostPassEffect>(960, 640);	/*ホストパスエフェクトクラス*/
-	auto Debugparts = std::make_unique<DeBuG>(FRAME_RATE);	/*デバッグクラス*/
-	GraphHandle screen = GraphHandle::Make(960, 640);
+			{
+				DrawString(100, 640 - 96, "CLICK to START", GetColor(255, 0, 0));
+				DrawString(100, 640 - 72, "PRESS ESC KEY", GetColor(255, 0, 0));
+			}
+		}
+		if (click != 0) {
+			if (circles.the_end()) {
+				return true;
+			}
+		}
+		return false;
+	}
+};
+class game {
+private:
+	std::unique_ptr< HostPassEffect, std::default_delete< HostPassEffect>> HostPassparts;
 
+	unsigned char life = 3;
 	std::vector<cir> circles;
 	float power_ = (640.f - 100.f - 100.f) / 2.f;
-	unsigned char life = 3;
-
-	char click = 0;
-	int x_m, y_m;
-	const int m_limit = 100;
-	GetMousePoint(&x_m, &y_m);
-	float x_dpos=0.f, y_dpos = 0.f,power_dpos = 0.f;
+	float x_dpos = 0.f, y_dpos = 0.f, power_dpos = 0.f;
 	float cnt_back = 0.f;
-
-
-	while (ProcessMessage() == 0) {
-		const float fps = GetFPS();
-		const auto waits = GetNowHiPerformanceCount();
-		Debugparts->put_way();
+	char click = 0;
+public:
+	game() {
+		HostPassparts = std::make_unique<HostPassEffect>(960, 640);	/*ホストパスエフェクトクラス*/
+	}
+	void set() {
+		life = 3;
+		circles.clear();
+		power_ = (640.f - 100.f - 100.f) / 2.f;
+		x_dpos = 0.f;
+		y_dpos = 0.f;
+		power_dpos = 0.f;
+		cnt_back = 0.f;
+	}
+	bool update() {
 		if (life > 0) {
 			//マウス座標処理
 			{
@@ -126,7 +188,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 					if (&c != &t) {
 						if (c.isHit(t)) {
 							power_dpos = 64.f;
-							c.col = 0.f;
 							if (life > 0) {
 								life--;
 							}
@@ -144,14 +205,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 				}
 			}
 		}
-		screen.SetDraw_Screen(true);
-		{
-			for (auto&c : circles) {
-				c.draw();
-			}
-			DrawCircle(x_m, y_m, power_, GetColor(255,0,0), FALSE);
-		}
-		GraphHandle::SetDraw_Screen(int(DX_SCREEN_BACK), true);
 		{
 			if (power_dpos >= 1.f) {
 				cnt_back += 4.f / GetFPS();
@@ -162,13 +215,23 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 			else {
 				cnt_back = 0.f;
 			}
-			if (cnt_back<=0.5f) {
+		}
+		//描画
+		screen.SetDraw_Screen(true);
+		{
+			for (auto&c : circles) {
+				c.draw();
+			}
+			DrawCircle(x_m, y_m, int(power_), GetColor(255, 0, 0), FALSE);
+		}
+		GraphHandle::SetDraw_Screen(int(DX_SCREEN_BACK), true);
+		{
+			if (cnt_back <= 0.5f) {
 				DrawBox(0, 0, 960, 640, GetColor(234, 139, 21), TRUE);
 			}
 			else {
 				DrawBox(0, 0, 960, 640, GetColor(255, 0, 0), TRUE);
 			}
-
 			screen.DrawRectGraph(
 				0 + m_limit + int(x_dpos), 0 + m_limit + int(y_dpos),
 				0 + m_limit + int(x_dpos), 0 + m_limit + int(y_dpos),
@@ -176,24 +239,131 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 				false);
 			HostPassparts->bloom(screen);
 			//UI
-			DrawFormatString(0, 640 - 18, GetColor(255, 0, 0), "pow : %6.2f", power_);
-			for (int i = 0; i < life; i++) {
-				DrawBox(10 + i * 36, 640 - 72+i*8, 10 + i * 36 + 32, 640 - 36, GetColor(255, 0, 0), TRUE);
+			{
+				DrawFormatString(0, 640 - 18, GetColor(255, 0, 0), "pow : %6.2f", power_);
+				for (int i = 0; i < life; i++) {
+					DrawBox(10 + i * 36, 640 - 72 + i * 8, 10 + i * 36 + 32, 640 - 36, GetColor(255, 0, 0), TRUE);
+				}
+				if (life == 0) {
+					DrawString(100, 640 - 96, "GAME OVER", GetColor(255, 0, 0));
+					DrawString(100, 640 - 72, "PRESS ESC KEY", GetColor(255, 0, 0));
+				}
 			}
-			if (life == 0) {
-				DrawString(100, 640 - 96, "GAME OVER", GetColor(255, 0, 0));
+		}
+		if (life == 0) {
+			return true;
+		}
+		return false;
+	}
+};
+class res {
+private:
+	char click = 0;
+	cir circles;
+public:
+	void set() {
+		click = 0;
+		circles.reset();
+	}
+	bool update() {
+		GetMousePoint(&x_m, &y_m);
+		if (((GetMouseInput()&MOUSE_INPUT_LEFT) != 0) & (click < 2)) {
+			click++;
+			if (click == 1) {
+				circles.set(64);
+			}
+		}
+		if (click != 0) {
+			circles.update();
+		}
+		screen.SetDraw_Screen(true);
+		{
+			if (click != 0) {
+				circles.draw();
+			}
+			DrawCircle(x_m, y_m, 64, GetColor(255, 0, 0), FALSE);
+		}
+		GraphHandle::SetDraw_Screen(int(DX_SCREEN_BACK), true);
+		{
+			screen.DrawGraph(0, 0, false);
+
+			{
+				DrawString(100, 640 - 96, "CLICK to NEXT", GetColor(255, 0, 0));
 				DrawString(100, 640 - 72, "PRESS ESC KEY", GetColor(255, 0, 0));
+			}
+		}
+		if (click != 0) {
+			if (circles.the_end()) {
+				return true;
+			}
+		}
+		return false;
+	}
+};
+
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
+	auto Drawparts = std::make_unique<DXDraw>("FPS_0", 960, 640, FRAME_RATE);	/*汎用クラス*/
+	auto titleparts = std::make_unique<title>();	/*タイトルクラス*/
+	auto gameparts = std::make_unique<game>();	/*ゲームクラス*/
+	auto resparts = std::make_unique<res>();	/*タイトルクラス*/
+	auto Debugparts = std::make_unique<DeBuG>(FRAME_RATE);	/*デバッグクラス*/
+	screen = GraphHandle::Make(960, 640);
+	int scene = 0;
+	do{
+		switch (scene) {
+		case 0:
+			titleparts->set();
+			break;
+		case 1:
+			gameparts->set();
+			break;
+		case 2:
+			resparts->set();
+			break;
+		}
+		GetMousePoint(&x_m, &y_m);
+		while (ProcessMessage() == 0) {
+			const float fps = GetFPS();
+			const auto waits = GetNowHiPerformanceCount();
+			Debugparts->put_way();
+			//update
+			bool ed = false;
+			switch (scene) {
+			case 0:
+				ed = titleparts->update();
+				break;
+			case 1:
+				ed = gameparts->update();
+				break;
+			case 2:
+				ed = resparts->update();
+				break;
 			}
 			//debug
 			Debugparts->end_way();
 			Debugparts->debug(10, 10, float(GetNowHiPerformanceCount() - waits) / 1000.f);
+			//画面更新
+			Drawparts->Screen_Flip(waits);
+			//強制終了
+			if (CheckHitKey(KEY_INPUT_ESCAPE) != 0) {
+				break;
+			}
+			//遷移
+			if (ed) {
+				switch (scene) {
+				case 0:
+					scene = 1;
+					break;
+				case 1:
+					scene = 2;
+					break;
+				case 2:
+					scene = 0;
+					break;
+				}
+				break;
+			}
 		}
-		//画面更新
-		Drawparts->Screen_Flip(waits);
-
-		if (CheckHitKey(KEY_INPUT_ESCAPE) != 0) {
-			break;
-		}
-	}
-	return 0;				// ソフトの終了 
+	} while (!(CheckHitKey(KEY_INPUT_ESCAPE) != 0));
+	return 0;
 }
