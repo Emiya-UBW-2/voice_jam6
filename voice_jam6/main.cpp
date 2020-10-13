@@ -141,6 +141,7 @@ private:
 	float cnt_back = 0.f;
 	char click = 0;
 public:
+	int score = 0;
 	game() {
 		HostPassparts = std::make_unique<HostPassEffect>(960, 640);	/*ホストパスエフェクトクラス*/
 	}
@@ -152,6 +153,7 @@ public:
 		y_dpos = 0.f;
 		power_dpos = 0.f;
 		cnt_back = 0.f;
+		score = 0;
 	}
 	bool update() {
 		if (life > 0) {
@@ -169,10 +171,11 @@ public:
 				if (click == 1) {
 					circles.resize(circles.size() + 1);
 					circles.back().set(power_);
-					power_ /= 4.f;
+					score += 1 + int(99.f*(((640.f - 100.f - 100.f) / 3.f) - power_) / ((640.f - 100.f - 100.f) / 3.f));
+					power_ /= 3.f;
 				}
 				else {
-					power_ = std::clamp(power_ + 100.f / GetFPS(), 0.f, (640.f - 100.f - 100.f) / 2.f);
+					power_ = std::clamp(power_ + 150.f / GetFPS(), 0.f, (640.f - 100.f - 100.f) / 3.f);
 				}
 			}
 		}
@@ -190,6 +193,7 @@ public:
 							power_dpos = 64.f;
 							if (life > 0) {
 								life--;
+								score /= 2;
 							}
 						}
 					}
@@ -240,7 +244,8 @@ public:
 			HostPassparts->bloom(screen);
 			//UI
 			{
-				DrawFormatString(0, 640 - 18, GetColor(255, 0, 0), "pow : %6.2f", power_);
+				DrawFormatString(200, 640 - 36, GetColor(255, 0, 0), "score : %06d", score);
+				DrawFormatString(200, 640 - 18, GetColor(255, 0, 0), "pow   : %6.2f", power_);
 				for (int i = 0; i < life; i++) {
 					DrawBox(10 + i * 36, 640 - 72 + i * 8, 10 + i * 36 + 32, 640 - 36, GetColor(255, 0, 0), TRUE);
 				}
@@ -261,6 +266,7 @@ private:
 	char click = 0;
 	cir circles;
 public:
+	int score = 0;
 	void set() {
 		click = 0;
 		circles.reset();
@@ -309,13 +315,14 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	auto Debugparts = std::make_unique<DeBuG>(FRAME_RATE);	/*デバッグクラス*/
 	screen = GraphHandle::Make(960, 640);
 	int scene = 0;
-	do{
+	do {
 		switch (scene) {
 		case 0:
 			titleparts->set();
 			break;
 		case 1:
 			gameparts->set();
+			resparts->score = gameparts->score;
 			break;
 		case 2:
 			resparts->set();
@@ -334,6 +341,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 				break;
 			case 1:
 				ed = gameparts->update();
+				resparts->score;
 				break;
 			case 2:
 				ed = resparts->update();
