@@ -4,6 +4,7 @@
 
 int x_m, y_m;
 GraphHandle screen;
+FontHandle font18, font36;
 
 class HostPassEffect {
 private:
@@ -118,8 +119,9 @@ public:
 			screen.DrawGraph(0, 0, false);
 
 			{
-				DrawString(100, 640 - 96, "CLICK to START", GetColor(255, 0, 0));
-				DrawString(100, 640 - 72, "PRESS ESC KEY", GetColor(255, 0, 0));
+				font36.DrawString_MID(960 / 2, 640 / 4, "GAME", GetColor(255, 255, 255));
+
+				font18.DrawString_MID(960 / 2, 640 * 3 / 4, "CLICK to START", GetColor(255, 0, 0));
 			}
 		}
 		if (click != 0) {
@@ -161,8 +163,8 @@ public:
 			{
 				int x_o = x_m, y_o = y_m;
 				GetMousePoint(&x_m, &y_m);
-				x_m = std::clamp(x_m, 0 + m_limit, 960 - m_limit);
-				y_m = std::clamp(y_m, 0 + m_limit, 640 - m_limit);
+				x_m = std::clamp(x_m, 0 + m_limit + int(power_), 960 - m_limit - int(power_));
+				y_m = std::clamp(y_m, 0 + m_limit + int(power_), 640 - m_limit - int(power_));
 				SetMousePoint(x_m, y_m);
 			}
 			//クリック処理
@@ -171,11 +173,11 @@ public:
 				if (click == 1) {
 					circles.resize(circles.size() + 1);
 					circles.back().set(power_);
-					score += 1 + int(99.f*(((640.f - 100.f - 100.f) / 3.f) - power_) / ((640.f - 100.f - 100.f) / 3.f));
+					score += 10 + int(990.f*((100.f) - power_) / (100.f));
 					power_ /= 3.f;
 				}
 				else {
-					power_ = std::clamp(power_ + 150.f / GetFPS(), 0.f, (640.f - 100.f - 100.f) / 3.f);
+					power_ = std::clamp(power_ + 100.f / GetFPS(), 0.f, 100.f);
 				}
 			}
 		}
@@ -244,14 +246,16 @@ public:
 			HostPassparts->bloom(screen);
 			//UI
 			{
-				DrawFormatString(200, 640 - 36, GetColor(255, 0, 0), "score : %06d", score);
-				DrawFormatString(200, 640 - 18, GetColor(255, 0, 0), "pow   : %6.2f", power_);
-				for (int i = 0; i < life; i++) {
-					DrawBox(10 + i * 36, 640 - 72 + i * 8, 10 + i * 36 + 32, 640 - 36, GetColor(255, 0, 0), TRUE);
+				DrawFormatString(200, 640 - 36, GetColor(152, 115, 169), "score : %04d", score);
+				DrawFormatString(200, 640 - 18, GetColor(152, 115, 169), "pow   : %6.2f", power_);
+				for (int i = 0; i < 3; i++) {
+					DrawBox(10 + i * 36, 640 - 72 + i * 8, 10 + i * 36 + 32, 640 - 36, GetColor(0,0,0), TRUE);
+					if (i < life) {
+						DrawBox(10 + i * 36, 640 - 72 + i * 8, 10 + i * 36 + 32, 640 - 36, GetColor(152, 115, 169), TRUE);
+					}
+					DrawBox(10 + i * 36, 640 - 72 + i * 8, 10 + i * 36 + 32, 640 - 36, GetColor(128,128,128), FALSE);
 				}
 				if (life == 0) {
-					DrawString(100, 640 - 96, "GAME OVER", GetColor(255, 0, 0));
-					DrawString(100, 640 - 72, "PRESS ESC KEY", GetColor(255, 0, 0));
 				}
 			}
 		}
@@ -294,8 +298,8 @@ public:
 			screen.DrawGraph(0, 0, false);
 
 			{
-				DrawString(100, 640 - 96, "CLICK to NEXT", GetColor(255, 0, 0));
-				DrawString(100, 640 - 72, "PRESS ESC KEY", GetColor(255, 0, 0));
+				font36.DrawStringFormat(960/7, 640 / 10, GetColor(234, 139, 21), "SCORE : %04d", score);
+				font18.DrawString_RIGHT(960*6/7, 640 - 96, "CLICK to NEXT", GetColor(255, 0, 0));
 			}
 		}
 		if (click != 0) {
@@ -313,8 +317,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	auto gameparts = std::make_unique<game>();	/*ゲームクラス*/
 	auto resparts = std::make_unique<res>();	/*タイトルクラス*/
 	auto Debugparts = std::make_unique<DeBuG>(FRAME_RATE);	/*デバッグクラス*/
+	font18 = FontHandle::Create(18);
+	font36 = FontHandle::Create(36);
 	screen = GraphHandle::Make(960, 640);
 	int scene = 0;
+	float bb = 255.f;
 	do {
 		switch (scene) {
 		case 0:
@@ -341,15 +348,22 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 				break;
 			case 1:
 				ed = gameparts->update();
-				resparts->score;
+				resparts->score=gameparts->score;
 				break;
 			case 2:
 				ed = resparts->update();
 				break;
 			}
+			//
+			SetDrawBlendMode(DX_BLENDMODE_ALPHA, bb);
+			DrawBox(0, 0, 960, 640, GetColor(234, 139, 21), TRUE);
+			SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 255);
+			easing_set(&bb, 0.f, 0.95f, GetFPS());
+			//
+			font18.DrawString_RIGHT(960-2, 640-18-2, "ESC EXIT", GetColor(192, 192, 192));
 			//debug
 			Debugparts->end_way();
-			Debugparts->debug(10, 10, float(GetNowHiPerformanceCount() - waits) / 1000.f);
+			//Debugparts->debug(10, 10, float(GetNowHiPerformanceCount() - waits) / 1000.f);
 			//画面更新
 			Drawparts->Screen_Flip(waits);
 			//強制終了
@@ -358,6 +372,15 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 			}
 			//遷移
 			if (ed) {
+				SetDrawBlendMode(DX_BLENDMODE_ALPHA, 26);
+				for(int i=0;i<=60;i++){
+					const auto waits_ = GetNowHiPerformanceCount();
+					GraphHandle::SetDraw_Screen(int(DX_SCREEN_BACK), false);
+					DrawBox(0, 0, 960, 640, GetColor(234, 139, 21), TRUE);
+					Drawparts->Screen_Flip(waits_);
+				}
+				SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 255);
+				bb = 255.f;
 				switch (scene) {
 				case 0:
 					scene = 1;
@@ -366,7 +389,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 					scene = 2;
 					break;
 				case 2:
-					scene = 0;
+					scene = 1;
 					break;
 				}
 				break;
