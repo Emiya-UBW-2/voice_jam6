@@ -405,7 +405,7 @@ void noise(int per = 60) {
 }
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
-	auto Drawparts = std::make_unique<DXDraw>("FPS_0", 960, 640, FRAME_RATE);	/*汎用クラス*/
+	auto Drawparts = std::make_unique<DXDraw>("GAME ver 0.9.0", 960, 640, FRAME_RATE);	/*汎用クラス*/
 	SetValidMousePointerWindowOutClientAreaMoveFlag(FALSE);
 	auto titleparts = std::make_unique<title>();	/*タイトルクラス*/
 	auto gameparts = std::make_unique<game>();	/*ゲームクラス*/
