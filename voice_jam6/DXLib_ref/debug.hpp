@@ -12,7 +12,7 @@ private:
 public:
 	DeBuG(const float& fps_rate = 60.f) {
 		frate = int(fps_rate);
-		font = FontHandle::Create(fontsize, DX_FONTTYPE_EDGE);
+		font = FontHandle::Create(nullptr,fontsize, DX_FONTTYPE_EDGE);
 		deb.resize(frate);
 	}
 	void put_way(void) {

@@ -69,7 +69,7 @@ public:
 	static FontHandle Create(std::basic_string_view<TCHAR> FontName, const int& Size, const int& FontType = -1, const int& CharSet = -1, const int& EdgeSize = -1, bool Italic = false) noexcept {
 		return { DxLib::CreateFontToHandleWithStrLen(FontName.data(), FontName.length(), Size, Size/3, FontType, CharSet, EdgeSize, Italic) };
 	}
-	static FontHandle Create(const int& Size, const int& FontType = -1, const int& CharSet = -1, const int& EdgeSize = -1, bool Italic = false) noexcept {
-		return { DxLib::CreateFontToHandle(nullptr, Size, Size / 3, FontType, CharSet, EdgeSize, Italic) };
+	static FontHandle Create(const char* buf,const int& Size, const int& FontType = -1, const int& CharSet = -1, const int& EdgeSize = -1, bool Italic = false) noexcept {
+		return { DxLib::CreateFontToHandle(buf, Size, Size / 3, FontType, CharSet, EdgeSize, Italic) };
 	}
 };

@@ -2,9 +2,12 @@
 #define m_limit 100
 #include "DXLib_ref/DXLib_ref.h"
 
+int break_f = 0;
+bool play_f = false;
 int x_m, y_m;
 GraphHandle screen;
-FontHandle font18, font36;
+FontHandle font24, font36;
+std::vector<std::array<std::string, 3>> lang;
 
 class HostPassEffect {
 private:
@@ -117,11 +120,16 @@ public:
 		GraphHandle::SetDraw_Screen(int(DX_SCREEN_BACK), true);
 		{
 			screen.DrawGraph(0, 0, false);
-
 			{
-				font36.DrawString_MID(960 / 2, 640 / 4, "GAME", GetColor(255, 255, 255));
+				font36.DrawString_MID(960 / 2, 640 / 4, lang[0][break_f], GetColor(255, 255, 255));
 
-				font18.DrawString_MID(960 / 2, 640 * 3 / 4, "CLICK to START", GetColor(255, 0, 0));
+				font24.DrawString_MID(960 / 2, 640 / 2 + 24 * 0, lang[1][break_f], GetColor(255, 0, 0));
+				font24.DrawString_MID(960 / 2, 640 / 2 + 24 * 1, lang[2][break_f], GetColor(255, 0, 0));
+
+				font24.DrawString_MID(960 / 2, 640 / 2 + 24 * 3, lang[3][break_f], GetColor(255, 128, 0));
+				font24.DrawString_MID(960 / 2, 640 / 2 + 24 * 4, lang[4][break_f], GetColor(255, 128, 0));
+
+				font24.DrawString_MID(960 / 2, 640 * 3 / 4, lang[5][break_f], GetColor(255, 0, 0));
 			}
 		}
 		if (click != 0) {
@@ -142,6 +150,8 @@ private:
 	float x_dpos = 0.f, y_dpos = 0.f, power_dpos = 0.f;
 	float cnt_back = 0.f;
 	char click = 0;
+	float score_r = 0.f;
+	std::vector<std::pair<int, float>> p_add;
 public:
 	int score = 0;
 	game() {
@@ -156,6 +166,8 @@ public:
 		power_dpos = 0.f;
 		cnt_back = 0.f;
 		score = 0;
+		score_r = 0.f;
+		p_add.clear();
 	}
 	bool update() {
 		if (life > 0) {
@@ -173,7 +185,8 @@ public:
 				if (click == 1) {
 					circles.resize(circles.size() + 1);
 					circles.back().set(power_);
-					score += 10 + int(990.f*((100.f) - power_) / (100.f));
+					p_add.emplace_back(100 + int(6900.f*((100.f) - power_) / (100.f)), 1.f);
+					score += p_add.back().first;
 					power_ /= 3.f;
 				}
 				else {
@@ -196,6 +209,7 @@ public:
 							if (life > 0) {
 								life--;
 								score /= 2;
+								p_add.emplace_back(-score, 1.f);
 							}
 						}
 					}
@@ -228,7 +242,9 @@ public:
 			for (auto&c : circles) {
 				c.draw();
 			}
-			DrawCircle(x_m, y_m, int(power_), GetColor(255, 0, 0), FALSE);
+			if (break_f == 0) {
+				DrawCircle(x_m, y_m, int(power_), GetColor(255, 0, 0), FALSE);
+			}
 		}
 		GraphHandle::SetDraw_Screen(int(DX_SCREEN_BACK), true);
 		{
@@ -246,20 +262,73 @@ public:
 			HostPassparts->bloom(screen);
 			//UI
 			{
-				DrawFormatString(200, 640 - 36, GetColor(152, 115, 169), "score : %04d", score);
-				DrawFormatString(200, 640 - 18, GetColor(152, 115, 169), "pow   : %6.2f", power_);
-				for (int i = 0; i < 3; i++) {
-					DrawBox(10 + i * 36, 640 - 72 + i * 8, 10 + i * 36 + 32, 640 - 36, GetColor(0,0,0), TRUE);
-					if (i < life) {
-						DrawBox(10 + i * 36, 640 - 72 + i * 8, 10 + i * 36 + 32, 640 - 36, GetColor(152, 115, 169), TRUE);
+				int digit = 10;
+				{
+					int num = std::abs(score - int(score_r));
+					while (num != 0) {
+						num /= 10;
+						digit += 6;
 					}
-					DrawBox(10 + i * 36, 640 - 72 + i * 8, 10 + i * 36 + 32, 640 - 36, GetColor(128,128,128), FALSE);
+				}
+
+				for (int i = 0; i < digit; i++) {
+					if (score > int(score_r)) {
+						score_r += 10.f / GetFPS();
+					}
+					else if (score < int(score_r)) {
+						score_r -= 10.f / GetFPS();
+					}
+					else {
+						break;
+					}
+				}
+
+				font36.DrawStringFormat(200 + 1, 640 - 92 + 1, GetColor(0, 0, 0), lang[6][break_f], int(score_r));
+				font36.DrawStringFormat(200, 640 - 92, GetColor(152, 115, 169), lang[6][break_f], int(score_r));
+				for (auto&p : p_add) {
+					SetDrawBlendMode(DX_BLENDMODE_ALPHA, int(255.f*p.second));
+					if (p.first >= 0) {
+						font24.DrawStringFormat(440, 640 - 92 - int((1.f - p.second)*36.f), GetColor(0, 0, 255), "+%d", p.first);
+					}
+					else {
+						font24.DrawStringFormat(440 + 36, 640 - 92 - int((1.f - p.second)*36.f), GetColor(255, 0, 0), "-%d", p.first);
+					}
+					SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 255);
+				}
+
+				while (true) {
+					int i = 0;
+					for (auto&p : p_add) {
+						p.second -= 1.5f / GetFPS();
+						if (p.second <= 0.f) {
+							p_add.erase(p_add.begin() + i);
+							break;
+						}
+						i++;
+					}
+					if (i == p_add.size()) {
+						break;
+					}
+				}
+
+				font36.DrawStringFormat(200 + 1, 640 - 56 + 1, GetColor(0, 0, 0), lang[7][break_f], power_);
+				font36.DrawStringFormat(200, 640 - 56, GetColor(152, 115, 169), lang[7][break_f], power_);
+				for (int i = 0; i < 3; i++) {
+					DrawBox(10 + i * 54, 640 - 72 + i * 12, 10 + i * 54 + 48 + 1, 640 - 18 + 1, GetColor(0, 0, 0), TRUE);
+					if (i < life) {
+						DrawBox(10 + i * 54, 640 - 72 + i * 12, 10 + i * 54 + 48, 640 - 18, GetColor(152, 115, 169), TRUE);
+					}
+					DrawBox(10 + i * 54, 640 - 72 + i * 12, 10 + i * 54 + 48, 640 - 18, GetColor(128, 128, 128), FALSE);
 				}
 				if (life == 0) {
 				}
 			}
 		}
 		if (life == 0) {
+			return true;
+		}
+
+		if (score >= 65535) {
 			return true;
 		}
 		return false;
@@ -296,10 +365,25 @@ public:
 		GraphHandle::SetDraw_Screen(int(DX_SCREEN_BACK), true);
 		{
 			screen.DrawGraph(0, 0, false);
-
 			{
-				font36.DrawStringFormat(960/7, 640 / 10, GetColor(234, 139, 21), "SCORE : %04d", score);
-				font18.DrawString_RIGHT(960*6/7, 640 - 96, "CLICK to NEXT", GetColor(255, 0, 0));
+				/*
+				if (break_f <= 1 || (break_f == 2 && score >= 65535)) {
+					font36.DrawStringFormat(960 / 7, 640 / 10, GetColor(234, 139, 21), lang[8][break_f], score);
+					font24.DrawString_RIGHT(960 * 6 / 7, 640 - 96, lang[9][break_f], GetColor(255, 0, 0));
+				}
+				else {
+					font36.DrawStringFormat(960 / 7, 640 / 10, GetColor(234, 139, 21), lang[8][1], score);
+					font24.DrawString_RIGHT(960 * 6 / 7, 640 - 96, lang[9][1], GetColor(255, 0, 0));
+				}
+				*/
+				if (score < 65535) {
+					font36.DrawStringFormat(960 / 7, 640 / 10, GetColor(234, 139, 21), lang[8][break_f], score);
+					font24.DrawString_RIGHT(960 * 6 / 7, 640 - 96, lang[9][break_f], GetColor(255, 0, 0));
+				}
+				else {
+					font36.DrawStringFormat(960 / 7, 640 / 10, GetColor(234, 139, 21), lang[8][2], score);
+					font24.DrawString_RIGHT(960 * 6 / 7, 640 - 96, lang[9][2], GetColor(255, 0, 0));
+				}
 			}
 		}
 		if (click != 0) {
@@ -311,16 +395,73 @@ public:
 	}
 };
 
+void noise(int per = 60) {
+	int p = 0, q = 0;
+	for (int i = 0; i < per; i++) {
+		p = GetRand(640);
+		q = GetRand(960);
+		DrawLine(q, p, (q < 960 / 2) ? 960 : 0, p, GetColor(255, 255, 255));
+	}
+}
+
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
 	auto Drawparts = std::make_unique<DXDraw>("FPS_0", 960, 640, FRAME_RATE);	/*汎用クラス*/
 	SetValidMousePointerWindowOutClientAreaMoveFlag(FALSE);
 	auto titleparts = std::make_unique<title>();	/*タイトルクラス*/
 	auto gameparts = std::make_unique<game>();	/*ゲームクラス*/
 	auto resparts = std::make_unique<res>();	/*タイトルクラス*/
-	auto Debugparts = std::make_unique<DeBuG>(FRAME_RATE);	/*デバッグクラス*/
-	font18 = FontHandle::Create(18);
-	font36 = FontHandle::Create(36);
+	//auto Debugparts = std::make_unique<DeBuG>(FRAME_RATE);	/*デバッグクラス*/
+
+	lang.resize(lang.size() + 10);
+	lang[0][0] = "GAME";
+	lang[0][1] = "GAHA";
+	lang[0][2] = "HELP";
+
+	lang[1][0] = "クリックすると ワ が でます";
+	lang[1][1] = "クリックすると た す けてす";
+	lang[1][2] = "たすけてよると た す けてよ";
+
+	lang[2][0] = "ワ が かさならないよう クリックしつづけよう！";
+	lang[2][1] = "で が possible overflow warning! :(";
+	lang[2][2] = "で ら れなn/a?ないよう たすけてよたすけてよ！";
+
+	lang[3][0] = "パワーが ちいさいほど トクテン アップ！";
+	lang[3][1] = "スコアが おおきいほど でられる アップ！";
+	lang[3][2] = "たすけて たりないほど たすけて たすけて";
+
+	lang[4][0] = "ワが カサなると トクテン はんげん...";
+	lang[4][1] = "６５ ５３５  と トクテン はんげん...";
+	lang[4][2] = "４ ２９４ ９６７ ２９５  はんげん...";
+
+	lang[5][0] = "CLICK to START";
+	lang[5][1] = "CLICK to START";
+	lang[5][2] = "CLICK to START";
+
+	lang[6][0] = "SCORE : %04d / 65535";
+	lang[6][1] = "SCORE : %05d / 65535";
+	lang[6][2] = "SCORE : %08d / 4294967295";
+
+	lang[7][0] = "POWER : %6.2f";
+	lang[7][1] = "POWER : %6.2f";
+	lang[7][2] = "POWER : %6.2f";
+
+	lang[8][0] = "SCORE : %04d";
+	lang[8][1] = "SCORE : %04d";
+	lang[8][2] = "GAME CLEAR";
+
+	lang[9][0] = "CLICK to NEXT";
+	lang[9][1] = "CLICK to NEXT";
+	lang[9][2] = "continue?????";
+
+	LPCSTR font_path = "x8y12pxTheStrongGamer.ttf"; // 読み込むフォントファイルのパス
+	if (!(AddFontResourceEx(font_path, FR_PRIVATE, NULL) > 0)) {
+		MessageBox(NULL, "フォント読込失敗", "", MB_OK);		// フォント読込エラー
+	}
+	font24 = FontHandle::Create("x8y12pxTheStrongGamer", 18);
+	font36 = FontHandle::Create("x8y12pxTheStrongGamer", 36);
+
 	screen = GraphHandle::Make(960, 640);
+
 	int scene = 0;
 	float bb = 255.f;
 	do {
@@ -340,7 +481,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 		while (ProcessMessage() == 0) {
 			const float fps = GetFPS();
 			const auto waits = GetNowHiPerformanceCount();
-			Debugparts->put_way();
+			//Debugparts->put_way();
 			//update
 			bool ed = false;
 			switch (scene) {
@@ -349,21 +490,34 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 				break;
 			case 1:
 				ed = gameparts->update();
-				resparts->score=gameparts->score;
+				resparts->score = gameparts->score;
 				break;
 			case 2:
 				ed = resparts->update();
 				break;
 			}
 			//
-			SetDrawBlendMode(DX_BLENDMODE_ALPHA, bb);
-			DrawBox(0, 0, 960, 640, GetColor(234, 139, 21), TRUE);
+			SetDrawBlendMode(DX_BLENDMODE_ALPHA, int(bb));
+			switch (break_f) {
+			case 0:
+				DrawBox(0, 0, 960, 640, GetColor(234, 139, 21), TRUE);
+				break;
+			case 1:
+				DrawBox(0, 0, 960, 640, GetColor(200, 64, 0), TRUE);
+				break;
+			case 2:
+				DrawBox(0, 0, 960, 640, GetColor(192, 0 , 0), TRUE);
+				break;
+			}
 			SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 255);
-			easing_set(&bb, 0.f, 0.95f, GetFPS());
+			easing_set(&bb, 0.f, 0.99f, GetFPS());
 			//
-			font18.DrawString_RIGHT(960-2, 640-18-2, "ESC EXIT", GetColor(192, 192, 192));
+			noise(break_f*30);
+			//
+			font24.DrawString_RIGHT(960 - 10 + 1, 640 - 24 - 10 + 1, "ESC EXIT", GetColor(0, 0, 0));
+			font24.DrawString_RIGHT(960 - 10, 640 - 24 - 10, "ESC EXIT", GetColor(192, 192, 192));
 			//debug
-			Debugparts->end_way();
+			//Debugparts->end_way();
 			//Debugparts->debug(10, 10, float(GetNowHiPerformanceCount() - waits) / 1000.f);
 			//画面更新
 			Drawparts->Screen_Flip(waits);
@@ -373,11 +527,31 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 			}
 			//遷移
 			if (ed) {
-				SetDrawBlendMode(DX_BLENDMODE_ALPHA, 26);
-				for(int i=0;i<=60;i++){
+				play_f = true;
+				for (int i = 0; i <= 60; i++) {
 					const auto waits_ = GetNowHiPerformanceCount();
 					GraphHandle::SetDraw_Screen(int(DX_SCREEN_BACK), false);
-					DrawBox(0, 0, 960, 640, GetColor(234, 139, 21), TRUE);
+
+					SetDrawBlendMode(DX_BLENDMODE_ALPHA, 40);
+					switch (break_f) {
+					case 0:
+						DrawBox(0, 0, 960, 640, GetColor(234, 139, 21), TRUE);
+						break;
+					case 1:
+						DrawBox(0, 0, 960, 640, GetColor(200, 64, 0), TRUE);
+						break;
+					case 2:
+						DrawBox(0, 0, 960, 640, GetColor(192, 0, 0), TRUE);
+						break;
+					}
+
+					SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 255);
+
+					noise(break_f * 30);
+
+					font24.DrawString_RIGHT(960 - 10 + 1, 640 - 24 - 10 + 1, "ESC EXIT", GetColor(0, 0, 0));
+					font24.DrawString_RIGHT(960 - 10, 640 - 24 - 10, "ESC EXIT", GetColor(192, 192, 192));
+
 					Drawparts->Screen_Flip(waits_);
 				}
 				SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 255);
@@ -391,11 +565,29 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 					break;
 				case 2:
 					scene = 1;
+					if (resparts->score >= 65535) {
+						//break_f++;
+						break_f = 4;
+						scene = 0;
+					}
 					break;
 				}
 				break;
 			}
 		}
+		if (scene == 0) {
+			if (break_f == 3) {
+				MessageBox(NULL, "YOU COULD NOT HELP HER HAHAHAHAHAHAHA", "", MB_OK);
+			}
+			break;
+		}
 	} while (!(CheckHitKey(KEY_INPUT_ESCAPE) != 0));
+	if (!RemoveFontResourceEx(font_path, FR_PRIVATE, NULL)) {
+		MessageBox(NULL, "remove failure", "", MB_OK);
+	}
+
+	if (!play_f) {
+		//「ありがとう」
+	}
 	return 0;
 }
